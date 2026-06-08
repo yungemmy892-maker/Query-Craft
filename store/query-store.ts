@@ -18,7 +18,7 @@ interface QueryState {
   queryPreview:  string;
   isDarkMode:    boolean;
   isRunning:     boolean;
-  isHydrated:    boolean;   // ← flips true after client storage is loaded
+  isHydrated:    boolean;
 
   // ─── History & Presets ──────────────────────────────────────────────────────
   queryHistory:  HistoryEntry[];
@@ -32,7 +32,7 @@ interface QueryState {
   expandedGroups:  Record<string, boolean>;
 
   // ─── Actions ────────────────────────────────────────────────────────────────
-  hydrate:         () => void;   // called once from a client useEffect
+  hydrate:         () => void;
   setSchema:       (key: SchemaKey) => void;
   setDarkMode:     (v: boolean) => void;
   setActivePanel:  (p: 'builder' | 'preview' | 'results') => void;
@@ -66,8 +66,18 @@ function buildPreview(root: Group, schemaKey: string): string {
   return generateQueryPreview(root, schemaKey, schema.fields);
 }
 
-// The SSR-safe initial root — stable ID, no random values
-const SSR_ROOT = makeRootGroup();
+/**
+ * Re-stamp the root node with the stable ROOT_GROUP_ID so that a
+ * cookie-persisted root (which may carry a random UUID from a previous
+ * session) never triggers a hydration mismatch on the root group element.
+ * Child nodes keep their own IDs — they are only rendered after hydration.
+ */
+function normaliseRoot(root: Group): Group {
+  return { ...root, id: ROOT_GROUP_ID };
+}
+
+// SSR-safe initial values — stable IDs, no localStorage/cookie access.
+const SSR_ROOT    = makeRootGroup();            // id === ROOT_GROUP_ID
 const SSR_PREVIEW = buildPreview(SSR_ROOT, 'users');
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -75,12 +85,13 @@ const SSR_PREVIEW = buildPreview(SSR_ROOT, 'users');
 export const useQueryStore = create<QueryState>()(
   subscribeWithSelector((set, get) => ({
 
-    // ─── Initial State (SSR-safe — no localStorage, no random IDs) ────────────
+    // ─── Initial State ─────────────────────────────────────────────────────────
+    // Must match what the server renders. No random values, no storage reads.
     schemaKey:      'users',
     root:           SSR_ROOT,
     results:        null,
     queryPreview:   SSR_PREVIEW,
-    isDarkMode:     true,        // default; overridden in hydrate()
+    isDarkMode:     true,
     isRunning:      false,
     isHydrated:     false,
     queryHistory:   [],
@@ -90,32 +101,30 @@ export const useQueryStore = create<QueryState>()(
     expandedGroups: { [ROOT_GROUP_ID]: true },
 
     // ─── hydrate() ─────────────────────────────────────────────────────────────
-    // Called once from a client-side useEffect. Reads localStorage/cookies and
-    // patches state — by this point React has already committed to the DOM, so
-    // there is no hydration mismatch window.
+    // Called once from a useEffect in page.tsx — runs only on the client,
+    // after React has committed the SSR HTML. Any state changes here happen
+    // outside the hydration window and are safe.
     hydrate: () => {
       if (get().isHydrated) return;
 
-      const savedTheme   = storage.getTheme();
-      const savedSchema  = (storage.getSchema() as SchemaKey) ?? 'users';
-      const savedQuery   = storage.getQuery();
-      const savedPresets = storage.getPresets();
-      const savedHistory = storage.getHistory();
+      const savedTheme    = storage.getTheme();
+      const savedSchema   = (storage.getSchema() as SchemaKey) ?? 'users';
+      const rawQuery      = storage.getQuery();
+      const savedPresets  = storage.getPresets();
+      const savedHistory  = storage.getHistory();
 
-      // If a persisted query exists, re-stamp the root ID so the cookie root
-      // (which may have a random ID from a previous session) is used as-is.
-      // If no persisted query, keep the stable SSR root.
-      const root = savedQuery ?? get().root;
+      // Re-stamp root ID to ROOT_GROUP_ID so it is always stable.
+      const root    = rawQuery ? normaliseRoot(rawQuery) : get().root;
       const preview = buildPreview(root, savedSchema);
 
       set({
-        schemaKey:    savedSchema,
+        schemaKey:      savedSchema,
         root,
-        queryPreview: preview,
-        isDarkMode:   savedTheme === 'dark',
-        queryHistory: savedHistory,
-        savedPresets: savedPresets,
-        isHydrated:   true,
+        queryPreview:   preview,
+        isDarkMode:     savedTheme === 'dark',
+        queryHistory:   savedHistory,
+        savedPresets:   savedPresets,
+        isHydrated:     true,
         expandedGroups: { [root.id]: true },
       });
     },
@@ -126,13 +135,13 @@ export const useQueryStore = create<QueryState>()(
       storage.setSchema(key);
       storage.setQuery(root);
       set({
-        schemaKey:    key,
+        schemaKey:      key,
         root,
-        results:      null,
-        activePanel:  'builder',
-        queryPreview: buildPreview(root, key),
-        validation:   { valid: true, errors: [] },
-        expandedGroups: { [root.id]: true },
+        results:        null,
+        activePanel:    'builder',
+        queryPreview:   buildPreview(root, key),
+        validation:     { valid: true, errors: [] },
+        expandedGroups: { [ROOT_GROUP_ID]: true },
       });
     },
 
@@ -162,7 +171,7 @@ export const useQueryStore = create<QueryState>()(
     addCondition: (groupId, fieldName) => {
       const schema = SCHEMAS[get().schemaKey];
       const name   = fieldName ?? schema.fields[0].name;
-      const cond   = makeCondition(name);  // uid() is fine here — client-only call
+      const cond   = makeCondition(name);
       const root   = addNodeToGroup(get().root, groupId, cond);
       const preview = buildPreview(root, get().schemaKey);
       storage.setQuery(root);
@@ -170,13 +179,13 @@ export const useQueryStore = create<QueryState>()(
     },
 
     addGroup: (groupId) => {
-      const group  = makeGroup('AND');     // uid() is fine here — client-only call
-      const root   = addNodeToGroup(get().root, groupId, group);
+      const group   = makeGroup('AND');
+      const root    = addNodeToGroup(get().root, groupId, group);
       const preview = buildPreview(root, get().schemaKey);
       storage.setQuery(root);
       set({
         root,
-        queryPreview: preview,
+        queryPreview:   preview,
         expandedGroups: { ...get().expandedGroups, [group.id]: true },
       });
     },
@@ -197,11 +206,11 @@ export const useQueryStore = create<QueryState>()(
       storage.setQuery(root);
       set({
         root,
-        results:      null,
-        activePanel:  'builder',
-        queryPreview: buildPreview(root, get().schemaKey),
-        validation:   { valid: true, errors: [] },
-        expandedGroups: { [root.id]: true },
+        results:        null,
+        activePanel:    'builder',
+        queryPreview:   buildPreview(root, get().schemaKey),
+        validation:     { valid: true, errors: [] },
+        expandedGroups: { [ROOT_GROUP_ID]: true },
       });
     },
 
@@ -216,7 +225,6 @@ export const useQueryStore = create<QueryState>()(
       if (!validation.valid) return;
 
       set({ isRunning: true });
-
       setTimeout(() => {
         const results = executeQuery(root, dataset);
         const entry: HistoryEntry = {
@@ -241,12 +249,12 @@ export const useQueryStore = create<QueryState>()(
     savePreset: (name) => {
       const { root, schemaKey, queryPreview } = get();
       const preset: QueryPreset = {
-        id:        uid(),
+        id:         uid(),
         name,
         schemaKey,
-        root:      deepClone(root),
-        sql:       queryPreview,
-        createdAt: formatDate(),
+        root:       deepClone(root),
+        sql:        queryPreview,
+        createdAt:  formatDate(),
       };
       const presets = [...get().savedPresets, preset];
       storage.setPresets(presets);
@@ -254,15 +262,17 @@ export const useQueryStore = create<QueryState>()(
     },
 
     loadPreset: (preset) => {
+      const root = normaliseRoot(deepClone(preset.root));
       storage.setSchema(preset.schemaKey);
-      storage.setQuery(preset.root);
+      storage.setQuery(root);
       set({
-        schemaKey:    preset.schemaKey as SchemaKey,
-        root:         deepClone(preset.root),
-        results:      null,
-        activePanel:  'builder',
-        queryPreview: preset.sql,
-        validation:   { valid: true, errors: [] },
+        schemaKey:      preset.schemaKey as SchemaKey,
+        root,
+        results:        null,
+        activePanel:    'builder',
+        queryPreview:   preset.sql,
+        validation:     { valid: true, errors: [] },
+        expandedGroups: { [ROOT_GROUP_ID]: true },
       });
     },
 
@@ -274,15 +284,17 @@ export const useQueryStore = create<QueryState>()(
 
     // ─── History ───────────────────────────────────────────────────────────────
     loadFromHistory: (entry) => {
+      const root = normaliseRoot(deepClone(entry.root));
       storage.setSchema(entry.schemaKey);
-      storage.setQuery(entry.root);
+      storage.setQuery(root);
       set({
-        schemaKey:    entry.schemaKey as SchemaKey,
-        root:         deepClone(entry.root),
-        results:      null,
-        activePanel:  'builder',
-        queryPreview: entry.sql,
-        validation:   { valid: true, errors: [] },
+        schemaKey:      entry.schemaKey as SchemaKey,
+        root,
+        results:        null,
+        activePanel:    'builder',
+        queryPreview:   entry.sql,
+        validation:     { valid: true, errors: [] },
+        expandedGroups: { [ROOT_GROUP_ID]: true },
       });
     },
 
@@ -291,7 +303,7 @@ export const useQueryStore = create<QueryState>()(
       set({ queryHistory: [] });
     },
 
-    // ─── Import / Export ────────────────────────────────────────────────────────
+    // ─── Import / Export ───────────────────────────────────────────────────────
     exportJSON: () => {
       const { root, schemaKey, queryPreview } = get();
       const data = { schemaKey, root, sql: queryPreview, exportedAt: new Date().toISOString() };
@@ -306,15 +318,17 @@ export const useQueryStore = create<QueryState>()(
       try {
         const data = JSON.parse(json);
         if (data.schemaKey && data.root && SCHEMAS[data.schemaKey as SchemaKey]) {
+          const root = normaliseRoot(data.root);
           storage.setSchema(data.schemaKey);
-          storage.setQuery(data.root);
+          storage.setQuery(root);
           set({
-            schemaKey:    data.schemaKey,
-            root:         data.root,
-            results:      null,
-            activePanel:  'builder',
-            queryPreview: buildPreview(data.root, data.schemaKey),
-            validation:   { valid: true, errors: [] },
+            schemaKey:      data.schemaKey,
+            root,
+            results:        null,
+            activePanel:    'builder',
+            queryPreview:   buildPreview(root, data.schemaKey),
+            validation:     { valid: true, errors: [] },
+            expandedGroups: { [ROOT_GROUP_ID]: true },
           });
         }
       } catch { /* invalid JSON — silently ignore */ }

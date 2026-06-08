@@ -5,24 +5,28 @@ import { useQueryStore } from '@/store/query-store';
 import { SCHEMAS, type SchemaKey } from '@/data';
 import SchemaIcon from '@/components/ui/SchemaIcon';
 
-export default function HistoryPanel() {
+interface HistoryPanelProps {
+  mobileOpen?: boolean;
+}
+
+export default function HistoryPanel({ mobileOpen = false }: HistoryPanelProps) {
   const queryHistory    = useQueryStore(s => s.queryHistory);
   const loadFromHistory = useQueryStore(s => s.loadFromHistory);
   const clearHistory    = useQueryStore(s => s.clearHistory);
 
   return (
-    <aside className="history-panel" data-testid="history-panel">
+    <aside
+      className={`history-panel ${mobileOpen ? 'history-panel--open' : ''}`}
+      data-testid="history-panel"
+      aria-label="History panel"
+    >
       <div className="panel-section">
         <div className="panel-section-title" style={{ justifyContent: 'space-between' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Clock size={11} /> HISTORY
           </span>
           {queryHistory.length > 0 && (
-            <button
-              className="history-clear-btn"
-              onClick={clearHistory}
-              data-testid="clear-history-btn"
-            >
+            <button className="history-clear-btn" onClick={clearHistory} data-testid="clear-history-btn">
               <Trash2 size={11} /> Clear
             </button>
           )}
@@ -33,9 +37,8 @@ export default function HistoryPanel() {
         {queryHistory.length === 0 && (
           <p className="empty-hint" style={{ padding: '12px 14px' }}>No queries run yet</p>
         )}
-
         {queryHistory.map((entry, idx) => {
-          const schemaIcon = SCHEMAS[entry.schemaKey as SchemaKey]?.icon ?? 'globe';
+          const schemaIcon  = SCHEMAS[entry.schemaKey as SchemaKey]?.icon ?? 'globe';
           const whereClause = entry.sql.split('\n').slice(2).join(' ').trim();
           return (
             <button

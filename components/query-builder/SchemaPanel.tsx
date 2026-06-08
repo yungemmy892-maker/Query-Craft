@@ -14,7 +14,11 @@ const TYPE_COLORS: Record<string, string> = {
   boolean: 'var(--type-boolean)',
 };
 
-export default function SchemaPanel() {
+interface SchemaPanelProps {
+  mobileOpen?: boolean;
+}
+
+export default function SchemaPanel({ mobileOpen = false }: SchemaPanelProps) {
   const schemaKey    = useQueryStore(s => s.schemaKey);
   const root         = useQueryStore(s => s.root);
   const addCondition = useQueryStore(s => s.addCondition);
@@ -26,8 +30,8 @@ export default function SchemaPanel() {
   const schema  = SCHEMAS[schemaKey as SchemaKey];
   const dataset = DATASETS[schemaKey];
 
-  const [presetName, setPresetName]   = useState('');
-  const [presetsOpen, setPresetsOpen] = useState(true);
+  const [presetName,   setPresetName]   = useState('');
+  const [presetsOpen,  setPresetsOpen]  = useState(true);
 
   const handleSave = () => {
     if (!presetName.trim()) return;
@@ -36,7 +40,11 @@ export default function SchemaPanel() {
   };
 
   return (
-    <aside className="schema-panel" data-testid="schema-panel">
+    <aside
+      className={`schema-panel ${mobileOpen ? 'schema-panel--open' : ''}`}
+      data-testid="schema-panel"
+      aria-label="Schema panel"
+    >
       {/* Schema info */}
       <div className="panel-section">
         <div className="panel-section-title">
@@ -104,11 +112,7 @@ export default function SchemaPanel() {
               )}
               {savedPresets.map(p => (
                 <div key={p.id} className="preset-row" data-testid={`preset-${p.id}`}>
-                  <button
-                    className="preset-load-btn"
-                    onClick={() => loadPreset(p)}
-                    title={p.sql}
-                  >
+                  <button className="preset-load-btn" onClick={() => loadPreset(p)} title={p.sql}>
                     <SchemaIcon
                       icon={SCHEMAS[p.schemaKey as SchemaKey]?.icon ?? 'globe'}
                       size={12}
