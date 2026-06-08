@@ -161,4 +161,4 @@ To add a new dataset:
 
 ## License
 
-This repository does not include a license file. Use or adapt the code according to your own policies.
+This repository includes a MIT licences.
