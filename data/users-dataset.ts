@@ -1,0 +1,17 @@
+export const usersDataset = [
+  { id:1,  name:'Chidi Okeke',    age:28, email:'chidi@example.com',  country:'Nigeria', status:'active',    purchases:14, createdAt:'2023-01-15', verified:true  },
+  { id:2,  name:'Sarah Johnson',  age:34, email:'sarah@example.com',  country:'USA',     status:'active',    purchases:5,  createdAt:'2022-11-20', verified:true  },
+  { id:3,  name:'Emeka Nwosu',    age:22, email:'emeka@example.com',  country:'Nigeria', status:'inactive',  purchases:0,  createdAt:'2024-02-01', verified:false },
+  { id:4,  name:'James Liu',      age:45, email:'james@example.com',  country:'Canada',  status:'active',    purchases:32, createdAt:'2021-07-08', verified:true  },
+  { id:5,  name:'Aisha Bello',    age:19, email:'aisha@example.com',  country:'Nigeria', status:'active',    purchases:2,  createdAt:'2024-05-10', verified:false },
+  { id:6,  name:'Tom Wilson',     age:38, email:'tom@example.com',    country:'UK',      status:'suspended', purchases:8,  createdAt:'2022-03-14', verified:true  },
+  { id:7,  name:'Fatima Musa',    age:27, email:'fatima@example.com', country:'Nigeria', status:'active',    purchases:21, createdAt:'2023-06-22', verified:true  },
+  { id:8,  name:'Klaus Weber',    age:52, email:'klaus@example.com',  country:'Germany', status:'inactive',  purchases:3,  createdAt:'2020-09-30', verified:false },
+  { id:9,  name:'Marie Dupont',   age:31, email:'marie@example.com',  country:'France',  status:'active',    purchases:17, createdAt:'2023-04-18', verified:true  },
+  { id:10, name:'Biodun Adeleke', age:24, email:'biodun@example.com', country:'Nigeria', status:'active',    purchases:9,  createdAt:'2024-01-05', verified:true  },
+  { id:11, name:'Alice Chen',     age:29, email:'alice@example.com',  country:'Canada',  status:'active',    purchases:44, createdAt:'2021-12-01', verified:true  },
+  { id:12, name:'Yusuf Ibrahim',  age:36, email:'yusuf@example.com',  country:'Nigeria', status:'suspended', purchases:0,  createdAt:'2022-08-15', verified:false },
+  { id:13, name:'Emma Brown',     age:41, email:'emma@example.com',   country:'USA',     status:'active',    purchases:26, createdAt:'2020-06-10', verified:true  },
+  { id:14, name:'Ngozi Eze',      age:33, email:'ngozi@example.com',  country:'Nigeria', status:'active',    purchases:11, createdAt:'2023-09-08', verified:true  },
+  { id:15, name:'Raj Patel',      age:47, email:'raj@example.com',    country:'UK',      status:'active',    purchases:38, createdAt:'2019-11-25', verified:true  },
+];
